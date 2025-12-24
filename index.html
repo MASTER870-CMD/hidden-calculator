@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual Vault App with History</title>
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background:#f5f5f5;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100vh;
+}
+h1{font-size:2em;color:#1e1f25;margin-bottom:10px;}
+
+/* Calculator */
+#calculator{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin-top:30px;
+  background: linear-gradient(145deg, #1f1f28, #2a2a3b);
+  padding:25px;
+  border-radius:25px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  width:100%;
+  max-width:380px;
+  position:relative;
+}
+#calcScreen{
+  width:100%;
+  height:80px;
+  margin-bottom:15px;
+  border-radius:20px;
+  background:#3a3f51;
+  color:#ffffff;
+  text-align:right;
+  padding:15px;
+  font-size:2.5em;
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+  font-weight:bold;
+  user-select:none;
+}
+.calcButtons{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-gap:15px;
+}
+.calcButtons button{
+  border:none;
+  padding:20px;
+  border-radius:15px;
+  background: linear-gradient(145deg, #00bcd4, #00a5b5);
+  color:#fff;
+  font-size:1.5em;
+  cursor:pointer;
+  box-shadow:0 5px #00777d;
+  transition:0.2s;
+}
+.calcButtons button:hover{
+  transform:scale(1.1);
+  background: linear-gradient(145deg, #00d0e5, #00b0c0);
+}
+
+/* History dropdown */
+.calc-history{
+  position:absolute;
+  top:100px;
+  background:#fff;
+  color:#000;
+  border-radius:10px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.3);
+  max-height:250px;
+  overflow-y:auto;
+  width:90%;
+  max-width:350px;
+  z-index:200;
+}
+.calc-history div{
+  padding:10px;
+  border-bottom:1px solid #ddd;
+  cursor:pointer;
+}
+.calc-history div:hover{background:#00adb5;color:#fff;}
+
+/* Vault */
+#vault{
+  display:none;
+  width:95%;
+  max-width:1000px;
+  margin-top:20px;
+  position:relative;
+}
+.tabs{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-bottom:15px;
+}
+.tab-btn{
+  padding:10px 25px;
+  margin:5px;
+  border-radius:20px;
+  background:#ffffff;
+  box-shadow:2px 2px 12px rgba(0,0,0,0.1);
+  cursor:pointer;
+  transition:0.3s;
+}
+.tab-btn.active{
+  background:#00adb5;
+  color:white;
+  box-shadow:0 0 15px rgba(0,173,181,0.5);
+}
+.tab-content{
+  display:none;
+  background:#ffffff;
+  padding:20px;
+  border-radius:15px;
+  box-shadow:2px 2px 15px rgba(0,0,0,0.1);
+  transition:all 0.5s ease;
+}
+.tab-content.active{display:block;}
+
+/* Drag & Drop */
+.drag-drop{
+  border:2px dashed #00adb5;
+  padding:20px;
+  text-align:center;
+  border-radius:12px;
+  margin:10px 0;
+  transition:0.3s;
+  cursor:pointer;
+}
+.drag-drop.dragover{background:rgba(0,173,181,0.1);}
+.file-grid{
+  display:flex;
+  flex-wrap:wrap;
+  margin-top:10px;
+  transition:all 0.3s ease;
+}
+.file-grid div{
+  margin:10px;
+  padding:5px;
+  border-radius:10px;
+  box-shadow:1px 1px 10px rgba(0,173,181,0.2);
+  max-width:140px;
+  text-align:center;
+  position:relative;
+  cursor:pointer;
+  transition:transform 0.3s;
+}
+.file-grid div:hover{transform:scale(1.05);}
+.file-grid div img, .file-grid div video{max-width:140px;border-radius:8px;}
+.delete-btn{
+  position:absolute;
+  top:2px;
+  right:2px;
+  background:red;
+  color:white;
+  border:none;
+  border-radius:50%;
+  width:22px;
+  height:22px;
+  cursor:pointer;
+  font-size:14px;
+  line-height:18px;
+}
+textarea{
+  width:100%;
+  height:150px;
+  resize:vertical;
+  margin-top:10px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #00adb5;
+}
+
+/* Modal */
+.modal{
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  justify-content:center;
+  align-items:center;
+  z-index:100;
+}
+.modal-content{
+  background:#fff;
+  padding:20px;
+  border-radius:15px;
+  max-width:90%;
+  max-height:90%;
+  overflow:auto;
+}
+.modal-content img, .modal-content video{
+  width:100%;
+  max-height:80vh;
+  border-radius:10px;
+}
+.close-modal{
+  position:absolute;
+  top:10px;
+  right:20px;
+  font-size:30px;
+  cursor:pointer;
+  color:#00adb5;
+}
+
+/* Secret code */
+.secret-container{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:15px;
+  margin-top:10px;
+}
+.secret-container input{
+  width:80%;
+  max-width:400px;
+  padding:12px 15px;
+  border-radius:12px;
+  border:1px solid #00adb5;
+  box-shadow: inset 0 2px 8px rgba(0,173,181,0.2);
+  font-size:1.1em;
+  transition: all 0.3s ease;
+}
+.secret-container input:focus{
+  outline:none;
+  border:2px solid #00fff0;
+  box-shadow: 0 0 15px rgba(0,255,240,0.4);
+}
+.update-btn{
+  padding:12px 25px;
+  border:none;
+  border-radius:15px;
+  background: linear-gradient(145deg,#00bcd4,#00e0f0);
+  color:white;
+  font-size:1.2em;
+  cursor:pointer;
+  transition:0.3s;
+}
+.update-btn:hover{
+  transform:scale(1.05);
+  background: linear-gradient(145deg,#00e0f0,#00c0d0);
+}
+.visible{opacity:1;pointer-events:auto;transform:translateX(0);}
+.hidden{opacity:0;pointer-events:none;transform:translateX(100%);}
+@media(max-width:600px){
+  .calcButtons{grid-template-columns:repeat(4,60px);}
+  #calcScreen{height:60px;font-size:1.8em;}
+  .file-grid div{max-width:100px;}
+}
+</style>
+</head>
+<body>
+
+<h1>Calculator</h1>
+<div id="calculator" class="visible">
+  <div id="calcScreen">0</div>
+  <div class="calcButtons">
+    <button onclick="press('7')">7</button><button onclick="press('8')">8</button>
+    <button onclick="press('9')">9</button><button onclick="press('/')">/</button>
+    <button onclick="press('4')">4</button><button onclick="press('5')">5</button>
+    <button onclick="press('6')">6</button><button onclick="press('*')">*</button>
+    <button onclick="press('1')">1</button><button onclick="press('2')">2</button>
+    <button onclick="press('3')">3</button><button onclick="press('-')">-</button>
+    <button onclick="press('0')">0</button><button onclick="press('.')">.</button>
+    <button onclick="calculate()">=</button><button onclick="press('+')">+</button>
+    <button onclick="deleteLast()">Del</button>
+    <button onclick="clearCalc()">C</button>
+  </div>
+</div>
+
+<div id="vault" class="hidden">
+  <button id="backCalc" style="margin-bottom:15px;padding:10px 20px;border-radius:10px;border:none;background:#00adb5;color:white;cursor:pointer;">Back to Calculator</button>
+  <h1>Professional Vault</h1>
+  <div class="tabs">
+    <div class="tab-btn active" data-tab="images">Images</div>
+    <div class="tab-btn" data-tab="videos">Videos</div>
+    <div class="tab-btn" data-tab="documents">Documents</div>
+    <div class="tab-btn" data-tab="textNotes">Text Notes</div>
+    <div class="tab-btn" data-tab="changeCode">Secret Code</div>
+  </div>
+  <div class="tab-content active" id="images"><div class="file-grid" id="imageGrid"></div></div>
+  <div class="tab-content" id="videos"><div class="file-grid" id="videoGrid"></div></div>
+  <div class="tab-content" id="documents"><div class="file-grid" id="docGrid"></div></div>
+  <div class="tab-content" id="textNotes">
+    <textarea id="textEditor" placeholder="Write your notes here..."></textarea>
+    <button onclick="saveText()">Save Note</button>
+  </div>
+  <div class="tab-content" id="changeCode">
+    <div class="secret-container">
+      <input type="password" id="currentCode" placeholder="Current Secret Code">
+      <input type="password" id="newCode1" placeholder="New Secret Code">
+      <input type="password" id="newCode2" placeholder="Confirm New Secret Code">
+      <button class="update-btn" onclick="changeSecret()">Update Secret Code</button>
+    </div>
+  </div>
+  <div class="drag-drop" id="dropZone">Drag & Drop or Click to Upload Files</div>
+  <input type="file" id="fileInput" multiple style="display:none">
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content" id="modalContent"></div>
+  <span class="close-modal" onclick="closeModal()">×</span>
+</div>
+
+<script>
+// ===== IndexedDB Setup =====
+let db;
+const request = indexedDB.open("VaultDB", 1);
+request.onupgradeneeded = function(event){
+  db = event.target.result;
+  db.createObjectStore("files", {keyPath:"id", autoIncrement:true});
+}
+request.onsuccess = function(event){ db=event.target.result; loadVaultFiles(); }
+request.onerror = function(event){ alert("IndexedDB error"); }
+
+// ===== Calculator =====
+let calcScreen = document.getElementById("calcScreen");
+let currentInput="";
+let secretCode = localStorage.getItem("vaultSecret") || "9999";
+let calcHistory = JSON.parse(localStorage.getItem("calcHistory")) || [];
+
+function press(num){ 
+  if(currentInput==="0") currentInput=""; 
+  currentInput+=num; 
+  calcScreen.innerText=currentInput;
+}
+function deleteLast(){
+  currentInput = currentInput.slice(0,-1);
+  calcScreen.innerText = currentInput || "0";
+}
+function clearCalc(){
+  currentInput = "";
+  calcScreen.innerText = "0";
+}
+function calculate(){
+  try{
+    if(currentInput === secretCode){
+      showVault();
+      currentInput=""; 
+      calcScreen.innerText="0";
+      loadVault(); 
+      return;
+    }
+    let result = eval(currentInput);
+    calcScreen.innerText = result;
+    calcHistory.push(currentInput + " = " + result);
+    if(calcHistory.length > 10) calcHistory.shift();
+    localStorage.setItem("calcHistory", JSON.stringify(calcHistory));
+    currentInput = result.toString();
+  }catch{calcScreen.innerText="Error"; currentInput="";}
+}
+calcScreen.addEventListener("click", e => {
+  if(e.detail === 3) showHistory();
+});
+function showHistory(){
+  let existing = document.querySelector(".calc-history");
+  if(existing) existing.remove();
+  let historyDiv = document.createElement("div");
+  historyDiv.classList.add("calc-history");
+  calcHistory.forEach(item=>{
+    let hItem = document.createElement("div");
+    hItem.innerText = item;
+    hItem.onclick = ()=>{ currentInput = item.split(" = ")[0]; calcScreen.innerText=currentInput; historyDiv.remove(); }
+    historyDiv.appendChild(hItem);
+  });
+  document.body.appendChild(historyDiv);
+}
+
+// ===== Tabs =====
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ===== Secret Code =====
+function changeSecret(){
+  const curr = document.getElementById("currentCode").value;
+  const n1 = document.getElementById("newCode1").value;
+  const n2 = document.getElementById("newCode2").value;
+  if(curr !== secretCode){ alert("Current code incorrect"); return;}
+  if(n1 !== n2){ alert("New codes do not match"); return;}
+  secretCode = n1;
+  localStorage.setItem("vaultSecret", secretCode);
+  alert("Secret code updated!");
+  document.getElementById("currentCode").value="";
+  document.getElementById("newCode1").value="";
+  document.getElementById("newCode2").value="";
+}
+
+// ===== Drag & Drop =====
+const dropZone=document.getElementById("dropZone");
+const fileInput=document.getElementById("fileInput");
+dropZone.addEventListener("click",()=>fileInput.click());
+dropZone.addEventListener("dragover",e=>{e.preventDefault(); dropZone.classList.add("dragover");});
+dropZone.addEventListener("dragleave",()=>dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop",e=>{ e.preventDefault(); dropZone.classList.remove("dragover"); handleFiles(e.dataTransfer.files);});
+fileInput.addEventListener("change",()=>handleFiles(fileInput.files));
+
+function handleFiles(files){
+  for(let file of files){
+    const reader = new FileReader();
+    reader.onload=function(e){
+      let transaction = db.transaction(["files"],"readwrite");
+      let store = transaction.objectStore("files");
+      store.add({name:file.name,type:file.type,data:e.target.result});
+      transaction.oncomplete = ()=>{ loadVaultFiles(); }
+    }
+    if(file.type.includes('text')||file.type.includes('pdf')||file.type.includes('msword')) reader.readAsText(file);
+    else reader.readAsDataURL(file);
+  }
+}
+
+// ===== Load Vault Files =====
+function loadVaultFiles(){
+  const imageGrid=document.getElementById("imageGrid");
+  const videoGrid=document.getElementById("videoGrid");
+  const docGrid=document.getElementById("docGrid");
+  imageGrid.innerHTML=""; videoGrid.innerHTML=""; docGrid.innerHTML="";
+  let transaction = db.transaction(["files"],"readonly");
+  let store = transaction.objectStore("files");
+  store.openCursor().onsuccess = function(event){
+    let cursor = event.target.result;
+    if(cursor){
+      let file = cursor.value;
+      let grid;
+      if(file.type.includes('image')) grid=imageGrid;
+      else if(file.type.includes('video')) grid=videoGrid;
+      else grid=docGrid;
+      let el=document.createElement("div");
+      if(file.type.includes('image')){ let img=document.createElement("img"); img.src=file.data; img.onclick=()=>openModal(file.data,"image"); el.appendChild(img);}
+      else if(file.type.includes('video')){ let vid=document.createElement("video"); vid.src=file.data; vid.controls=true; vid.onclick=()=>openModal(file.data,"video"); el.appendChild(vid);}
+      else{ el.innerText=file.name; el.onclick=()=>openModal(file.data,"doc"); }
+      let del=document.createElement("button"); del.innerText="×"; del.classList.add("delete-btn");
+      del.onclick=()=>{ deleteFile(file.id); }
+      el.appendChild(del);
+      grid.appendChild(el);
+      cursor.continue();
+    }
+  }
+}
+
+// ===== Delete File =====
+function deleteFile(id){
+  let transaction = db.transaction(["files"],"readwrite");
+  let store = transaction.objectStore("files");
+  store.delete(id);
+  transaction.oncomplete = ()=>{ loadVaultFiles(); }
+}
+
+// ===== Text Notes =====
+function saveText(){ 
+  const text=document.getElementById("textEditor").value; 
+  localStorage.setItem("vaultNote",text); 
+  alert("Note saved!"); 
+}
+
+// ===== Modal =====
+const modal=document.getElementById("modal");
+const modalContent=document.getElementById("modalContent");
+function openModal(src,type){ 
+  modal.style.display="flex"; 
+  modalContent.innerHTML=""; 
+  if(type==="image"){ let img=document.createElement("img"); img.src=src; modalContent.appendChild(img);}
+  else if(type==="video"){ let vid=document.createElement("video"); vid.src=src; vid.controls=true; modalContent.appendChild(vid);}
+  else if(type==="doc"){ let pre=document.createElement("pre"); pre.innerText=src; modalContent.appendChild(pre);}
+}
+function closeModal(){ modal.style.display="none"; }
+
+// ===== Vault Load =====
+function loadVault(){
+  document.getElementById("textEditor").value = localStorage.getItem("vaultNote")||"";
+  loadVaultFiles();
+}
+
+// ===== Sliding Animations =====
+function showVault(){
+  const calc = document.getElementById("calculator");
+  const vault = document.getElementById("vault");
+  calc.classList.remove("visible"); calc.classList.add("hidden");
+  setTimeout(()=>{
+    calc.style.display="none";
+    vault.style.display="block";
+    vault.classList.remove("hidden"); vault.classList.add("visible");
+  }, 300);
+}
+
+document.getElementById("backCalc").addEventListener("click",()=>{
+  const calc = document.getElementById("calculator");
+  const vault = document.getElementById("vault");
+  vault.classList.remove("visible"); vault.classList.add("hidden");
+  setTimeout(()=>{
+    vault.style.display="none";
+    calc.style.display="flex";
+    calc.classList.remove("hidden"); calc.classList.add("visible");
+  }, 300);
+});
+</script>
+</body>
+</html>
